@@ -3,18 +3,20 @@ package com.andrew121410.mc.doubleascoreboard;
 import com.andrew121410.mc.world16utils.chat.Translate;
 import io.papermc.paper.scoreboard.numbers.NumberFormat;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scoreboard.*;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public final class DoubleAScoreboard extends JavaPlugin {
+
     private final List<Component> titleFrames = new ArrayList<>();
     private int titleFrameIndex = 0;
+    private final Map<UUID, Scoreboard> playerScoreboards = new HashMap<>();
 
     @Override
     public void onEnable() {
@@ -67,16 +69,23 @@ public final class DoubleAScoreboard extends JavaPlugin {
                     updateScoreboard(player);
                 }
             }
-        }.runTaskTimer(this, 0, 3);
+        }.runTaskTimer(this, 0, 5);
     }
 
     private void updateScoreboard(Player player) {
-        ScoreboardManager manager = Bukkit.getScoreboardManager();
-        if (manager == null) return;
+        UUID playerUUID = player.getUniqueId();
+        Scoreboard board = playerScoreboards.computeIfAbsent(playerUUID, uuid -> createNewScoreboard());
 
-        Scoreboard board = manager.getNewScoreboard();
-        Objective objective = board.registerNewObjective("custom", Criteria.DUMMY, getNextTitleFrame());
-        objective.setDisplaySlot(DisplaySlot.SIDEBAR);
+        Objective objective = board.getObjective(DisplaySlot.SIDEBAR);
+        if (objective == null) {
+            objective = board.registerNewObjective("custom", Criteria.DUMMY, getNextTitleFrame());
+            objective.setDisplaySlot(DisplaySlot.SIDEBAR);
+        } else {
+            objective.displayName(getNextTitleFrame());
+        }
+
+        // Clear existing scores and update lines
+        board.getEntries().forEach(board::resetScores);
 
         addLine(objective, Translate.miniMessage("<gold><bold>+---------------+"), 10);
         addLine(objective, Translate.miniMessage("<blue><italic>[Network]"), 9);
@@ -84,10 +93,16 @@ public final class DoubleAScoreboard extends JavaPlugin {
         addLine(objective, Translate.miniMessage("<light_purple>> <dark_green>Ping: <gold>" + player.getPing()), 7);
         addLine(objective, Translate.miniMessage(" "), 6); // Spacer
         addLine(objective, Translate.miniMessage("<gold><italic>[Player]"), 5);
-        addLine(objective, Translate.miniMessage("<light_purple>> <dark_green>Tokens: <gold>" + "na"), 4);
+        addLine(objective, Translate.miniMessage("<light_purple>> <dark_green>Tokens: <gold>" + "1000"), 4);
         addLine(objective, Translate.miniMessage("<gold><bold>+---------------+"), 3);
 
         player.setScoreboard(board);
+    }
+
+    private Scoreboard createNewScoreboard() {
+        ScoreboardManager manager = Bukkit.getScoreboardManager();
+        if (manager == null) throw new IllegalStateException("ScoreboardManager is not available");
+        return manager.getNewScoreboard();
     }
 
     private Component getNextTitleFrame() {
@@ -97,16 +112,14 @@ public final class DoubleAScoreboard extends JavaPlugin {
     }
 
     private void addLine(Objective objective, Component text, int score) {
-        String legacyText = net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
-                .legacySection()
-                .serialize(text);
-
-        Score scoreLine = objective.getScore(legacyText);
+        String serializedText = LegacyComponentSerializer.legacySection().serialize(text);
+        Score scoreLine = objective.getScore(serializedText);
         scoreLine.setScore(score);
         scoreLine.numberFormat(NumberFormat.blank());
     }
 
     @Override
     public void onDisable() {
+        playerScoreboards.clear();
     }
 }
