@@ -3,12 +3,12 @@ package com.andrew121410.mc.doubleascoreboard;
 import com.andrew121410.mc.world16utils.chat.Translate;
 import io.papermc.paper.scoreboard.numbers.NumberFormat;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scoreboard.*;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
@@ -17,6 +17,7 @@ public final class DoubleAScoreboard extends JavaPlugin {
     private final List<Component> titleFrames = new ArrayList<>();
     private int titleFrameIndex = 0;
     private final Map<UUID, Scoreboard> playerScoreboards = new HashMap<>();
+    private final Map<UUID, Map<Integer, Team>> playerTeams = new HashMap<>();
 
     @Override
     public void onEnable() {
@@ -75,6 +76,7 @@ public final class DoubleAScoreboard extends JavaPlugin {
     private void updateScoreboard(Player player) {
         UUID playerUUID = player.getUniqueId();
         Scoreboard board = playerScoreboards.computeIfAbsent(playerUUID, uuid -> createNewScoreboard());
+        Map<Integer, Team> teams = playerTeams.computeIfAbsent(playerUUID, uuid -> new HashMap<>());
 
         Objective objective = board.getObjective(DisplaySlot.SIDEBAR);
         if (objective == null) {
@@ -84,17 +86,14 @@ public final class DoubleAScoreboard extends JavaPlugin {
             objective.displayName(getNextTitleFrame());
         }
 
-        // Clear existing scores and update lines
-        board.getEntries().forEach(board::resetScores);
-
-        addLine(objective, Translate.miniMessage("<gold><bold>+---------------+"), 10);
-        addLine(objective, Translate.miniMessage("<blue><italic>[Network]"), 9);
-        addLine(objective, Translate.miniMessage("<light_purple>> <dark_green>Players: <gold>" + Bukkit.getOnlinePlayers().size()), 8);
-        addLine(objective, Translate.miniMessage("<light_purple>> <dark_green>Ping: <gold>" + player.getPing()), 7);
-        addLine(objective, Translate.miniMessage(" "), 6); // Spacer
-        addLine(objective, Translate.miniMessage("<gold><italic>[Player]"), 5);
-        addLine(objective, Translate.miniMessage("<light_purple>> <dark_green>Tokens: <gold>" + "1000"), 4);
-        addLine(objective, Translate.miniMessage("<gold><bold>+---------------+"), 3);
+        updateLine(board, teams, 10, "<gold><bold>+---------------+");
+        updateLine(board, teams, 9, "<blue><italic>[Network]");
+        updateLine(board, teams, 8, "<light_purple>> <dark_green>Players: <gold>" + Bukkit.getOnlinePlayers().size());
+        updateLine(board, teams, 7, "<light_purple>> <dark_green>Ping: <gold>" + player.getPing());
+        updateLine(board, teams, 6, " "); // Spacer
+        updateLine(board, teams, 5, "<gold><italic>[Player]");
+        updateLine(board, teams, 4, "<light_purple>> <dark_green>Tokens: <gold>na");
+        updateLine(board, teams, 3, "<gold><bold>+---------------+");
 
         player.setScoreboard(board);
     }
@@ -111,15 +110,27 @@ public final class DoubleAScoreboard extends JavaPlugin {
         return frame;
     }
 
-    private void addLine(Objective objective, Component text, int score) {
-        String serializedText = LegacyComponentSerializer.legacySection().serialize(text);
-        Score scoreLine = objective.getScore(serializedText);
-        scoreLine.setScore(score);
-        scoreLine.numberFormat(NumberFormat.blank());
+    private void updateLine(Scoreboard board, Map<Integer, Team> teams, int score, String content) {
+        Team team = teams.computeIfAbsent(score, s -> {
+            Team newTeam = board.registerNewTeam("line" + score);
+            String entry = createUniqueEntry(score);
+            newTeam.addEntry(entry);
+            @NotNull Score theScore = board.getObjective(DisplaySlot.SIDEBAR).getScore(entry);
+            theScore.setScore(score);
+            theScore.numberFormat(NumberFormat.blank());
+            return newTeam;
+        });
+
+        team.prefix(Translate.miniMessage(content));
+    }
+
+    private String createUniqueEntry(int score) {
+        return "§" + (char) ('a' + score);
     }
 
     @Override
     public void onDisable() {
         playerScoreboards.clear();
+        playerTeams.clear();
     }
 }
