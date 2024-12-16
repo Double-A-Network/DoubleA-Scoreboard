@@ -2,9 +2,13 @@ package com.andrew121410.mc.doubleascoreboard;
 
 import com.andrew121410.mc.world16utils.chat.Translate;
 import io.papermc.paper.scoreboard.numbers.NumberFormat;
+import me.clip.placeholderapi.PlaceholderAPI;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scoreboard.*;
@@ -12,7 +16,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
-public final class DoubleAScoreboard extends JavaPlugin {
+public final class DoubleAScoreboard extends JavaPlugin implements Listener {
 
     private final List<Component> titleFrames = new ArrayList<>();
     private int titleFrameIndex = 0;
@@ -23,6 +27,8 @@ public final class DoubleAScoreboard extends JavaPlugin {
     public void onEnable() {
         setupTitleFrames();
         startScoreboardTask();
+
+        getServer().getPluginManager().registerEvents(this, this);
     }
 
     private void setupTitleFrames() {
@@ -37,9 +43,11 @@ public final class DoubleAScoreboard extends JavaPlugin {
         titleFrames.add(Translate.miniMessage("<gold>Doubl"));
         titleFrames.add(Translate.miniMessage("<gold>Doubl<yellow>e"));
         titleFrames.add(Translate.miniMessage("<gold>Double"));
+        titleFrames.add(Translate.miniMessage("<gold>Double<yellow>-"));
         titleFrames.add(Translate.miniMessage("<gold>Double<blue>-"));
+        titleFrames.add(Translate.miniMessage("<gold>Double<blue>- "));
         titleFrames.add(Translate.miniMessage("<gold>Double<blue>-<yellow>A"));
-        titleFrames.add(Translate.miniMessage("<gold>Double<blue>-<gold>A"));
+        titleFrames.add(Translate.miniMessage("<gold>Double<blue>-<gold>A<yellow> "));
         titleFrames.add(Translate.miniMessage("<gold>Double<blue>-<gold>A <yellow>N"));
         titleFrames.add(Translate.miniMessage("<gold>Double<blue>-<gold>A N"));
         titleFrames.add(Translate.miniMessage("<gold>Double<blue>-<gold>A N<yellow>e"));
@@ -86,13 +94,21 @@ public final class DoubleAScoreboard extends JavaPlugin {
             objective.displayName(getNextTitleFrame());
         }
 
+        String networkPlayers = PlaceholderAPI.setPlaceholders(player, "%bungee_total%");
+        // Sometimes the placeholder returns "0" because there's like a delay or something?
+        if (networkPlayers.equals("0")) {
+            networkPlayers = "1";
+        }
+
+        String vaultBalance = PlaceholderAPI.setPlaceholders(player, "%vault_eco_balance%");
+
         updateLine(board, teams, 10, "<gold><bold>+---------------+");
         updateLine(board, teams, 9, "<blue><italic>[Network]");
-        updateLine(board, teams, 8, "<light_purple>> <dark_green>Players: <gold>" + Bukkit.getOnlinePlayers().size());
+        updateLine(board, teams, 8, "<light_purple>> <dark_green>Players: <gold>" + networkPlayers);
         updateLine(board, teams, 7, "<light_purple>> <dark_green>Ping: <gold>" + player.getPing());
         updateLine(board, teams, 6, " "); // Spacer
         updateLine(board, teams, 5, "<gold><italic>[Player]");
-        updateLine(board, teams, 4, "<light_purple>> <dark_green>Tokens: <gold>na");
+        updateLine(board, teams, 4, "<light_purple>> <dark_green>Tokens: <gold>" + vaultBalance);
         updateLine(board, teams, 3, "<gold><bold>+---------------+");
 
         player.setScoreboard(board);
@@ -126,6 +142,14 @@ public final class DoubleAScoreboard extends JavaPlugin {
 
     private String createUniqueEntry(int score) {
         return "§" + (char) ('a' + score);
+    }
+
+    @EventHandler
+    public void onPlayerLeave(PlayerQuitEvent event) {
+        Player player = event.getPlayer();
+        UUID playerUUID = player.getUniqueId();
+        playerScoreboards.remove(playerUUID);
+        playerTeams.remove(playerUUID);
     }
 
     @Override

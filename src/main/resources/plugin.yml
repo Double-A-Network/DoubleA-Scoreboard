@@ -2,3 +2,4 @@ name: DoubleA-Scoreboard
 version: '1.0'
 main: com.andrew121410.mc.doubleascoreboard.DoubleAScoreboard
 api-version: '1.21'
+depend: [World1-6Utils, PlaceholderAPI]

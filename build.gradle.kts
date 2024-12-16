@@ -65,6 +65,10 @@ repositories {
     }
 
     maven {
+        url = uri("https://repo.extendedclip.com/releases/")
+    }
+
+    maven {
         url = uri("https://jitpack.io")
     }
 }
@@ -73,6 +77,7 @@ dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
     compileOnly("com.github.World1-6.World1-6Utils:World1-6Utils-Plugin:1145eed45b")
     compileOnly("org.geysermc.floodgate:api:2.2.3-SNAPSHOT")
+    compileOnly("me.clip:placeholderapi:2.11.6")
 }
 
 publishing {
